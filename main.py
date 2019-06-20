@@ -1,5 +1,6 @@
 import os, socket,sys, time
 from threading import Thread
+import hashlib
 
 
 class converse():
@@ -13,8 +14,9 @@ class converse():
         self.send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)           
         self.send_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST,1)
         self.name = ''
-        self.online_num = []   
-
+        self.online_num = []  
+        self.identity = hashlib.sha224(("i am out, need some air").encode('utf-8')).hexdigest()
+        self.identity_size = len(self.identity)
 
 
 
@@ -37,25 +39,23 @@ class converse():
     def get(self):
         lis = []
         while True:
-            recv_message = self.shout.recv(1024)              
+            recvd_msg = self.shout.recv(1024)              
 
-            recv_string_message = str(recv_message.decode('utf-8'))
+            recvd_str_msg = str(recvd_msg.decode('utf-8'))
 
-            if recv_string_message.find(':') != -1:
-            
+            if recvd_str_msg.find(':') != -1:
+                print(recvd_str_msg)      
 
-                print(recv_string_message)      
+            elif recvd_str_msg.find(self.identity) != -1 and recvd_str_msg.find(':') == -1 and recvd_str_msg[self.identity_size:] in self.online_num:
 
-            elif recv_string_message.find('!@#') != -1 and recv_string_message.find(':') == -1 and recv_string_message[3:] in self.online_num:
-
-                self.online_num.remove(recv_string_message[3:])     
+                self.online_num.remove(recvd_str_msg[self.identity_size:])     
 
                 print('currently online>> ' + str(len(self.online_num)))  
 
-            elif not(recv_string_message in self.online_num) and recv_string_message.find(':') == -1:
+            elif not(recvd_str_msg in self.online_num) and recvd_str_msg.find(':') == -1:
 
 
-                self.online_num.append(recv_string_message)         
+                self.online_num.append(recvd_str_msg)         
 
                 lis.append(self.shout)
                 print('currently online>> ' + str(len(self.online_num)))  
@@ -74,7 +74,7 @@ class converse():
             if data == 'exit()':               
            
 
-                exit_msg = '!@#' + self.name   
+                exit_msg = self.identity + self.name   
 
                 self.send_sock.sendto(exit_msg.encode('utf-8'), ('255.255.255.255', 8080))
 
@@ -112,33 +112,34 @@ class converse():
 
         self.initialise()
 
-        recvThread = Thread(target=self.get)               
+        Thread1 = Thread(target=self.get)               
+
+        Thread2 = Thread(target=self.shout_status)
+
+        Thread3 = Thread(target=self.send)                                        
 
 
-        sendMsgThread = Thread(target=self.send)                                        
+        Thread1.start()                                          
+
+        Thread2.start()                                       
+
+        Thread3.start()                                   
 
 
-        sendOnlineThread = Thread(target=self.shout_status)
+        Thread1.join()                                           
 
+        Thread2.join()                                       
 
-        recvThread.start()                                          
-
-        sendMsgThread.start()                                       
-
-        sendOnlineThread.start()                                   
-
-
-        recvThread.join()                                           
-
-        sendMsgThread.join()                                       
-
-        sendOnlineThread.join()
+        Thread3.join()
 
 
 
 
 c = converse()
 c.start()
+
+
+
 
 
 
